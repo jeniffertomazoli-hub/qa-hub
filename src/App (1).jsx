@@ -785,3 +785,9 @@ export default function App() {
   if (screen === 'board')    return <Board project={proj} go={go}/>
   if (screen === 'detail')   return <Detail ctx={detailCtx} go={go}/>
 }
+
+/* ─────────────────────────────────────────────────────────
+   ENTRY POINT
+───────────────────────────────────────────────────────── */
+import ReactDOM from 'react-dom/client'
+ReactDOM.createRoot(document.getElementById('root')).render(<App />)
