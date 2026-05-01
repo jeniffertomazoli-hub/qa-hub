@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import ReactDOM from 'react-dom/client'
 import { sb } from './supabase.js'
 
 /* ─────────────────────────────────────────────────────────
@@ -785,3 +786,8 @@ export default function App() {
   if (screen === 'board')    return <Board project={proj} go={go}/>
   if (screen === 'detail')   return <Detail ctx={detailCtx} go={go}/>
 }
+
+/* ─── RENDER ─────────────────────────────────────────── */
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode><App /></React.StrictMode>
+)
