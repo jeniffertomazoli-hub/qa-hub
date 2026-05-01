@@ -183,7 +183,7 @@ function Projects({ go }) {
                     onMouseLeave={e => e.currentTarget.style.color='#1E293B'}>×</button>
                 </div>
                 <div style={{ fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:14, color:'#F1F5F9', marginBottom:4 }}>{p.name}</div>
-                {p.description {p.desc && <div{p.desc && <div <div style={{ color:'#475569', fontSize:12, lineHeight:1.5 }}>>{p.description}</div>}
+                {p.description && <div style={{ color:'#475569', fontSize:12, lineHeight:1.5 }}>{p.description}</div>}
                 <div style={{ marginTop:14, color:p.color, fontSize:11, fontWeight:700 }}>Abrir →</div>
               </div>
             </div>
