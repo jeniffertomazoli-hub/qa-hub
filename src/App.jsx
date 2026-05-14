@@ -243,6 +243,7 @@ function Board({ project, go }) {
   const [newTag, setNewTag]     = useState('')
   const [showTagBox, setSTB]    = useState(false)
   const [newItemOpen, setNIO]   = useState(false)
+  const [editItem, setEditItem] = useState(null)
   const tagRef                  = useRef()
 
   useEffect(() => {
@@ -271,7 +272,7 @@ function Board({ project, go }) {
       status: form.status,
       prio:   form.prio,
       tags:   form.tags,
-      description: form.descriptionription,
+      description: form.description,
       qa:     form.qa,
       dev:    form.dev,
       media:  form.media,
@@ -297,6 +298,14 @@ function Board({ project, go }) {
     const { error } = await sb.from('items').update({ comments }).eq('id', id)
     if (error) { saveStatus('err'); return }
     setItems(p => p.map(x => x.id === id ? {...x, comments} : x))
+    saveStatus('ok')
+  }
+
+  async function updateItem(id, fields) {
+    setSS('saving')
+    const { error } = await sb.from('items').update(fields).eq('id', id)
+    if (error) { saveStatus('err'); return }
+    setItems(p => p.map(x => x.id === id ? {...x, ...fields} : x))
     saveStatus('ok')
   }
 
@@ -404,7 +413,7 @@ function Board({ project, go }) {
                     <span style={{ background:'#0F172A', color:'#334155', borderRadius:10, padding:'1px 6px', fontSize:10, fontWeight:700 }}>{col.length}</span>
                   </div>
                   <div style={{ background:'#04080F', borderRadius:8, padding:7, minHeight:80 }}>
-                    {col.map(item => <KCard key={item.id} item={item} onClick={() => go('detail', { item, project, setStatus, addComment })}/>)}
+                    {col.map(item => <KCard key={item.id} item={item} onClick={() => go('detail', { item, project, setStatus, addComment, updateItem })} onEdit={() => setEditItem(item)}/>)}
                     {col.length === 0 && <div style={{ textAlign:'center', padding:'24px 0', color:'#1E293B', fontSize:11 }}>Vazio</div>}
                   </div>
                 </div>
@@ -423,7 +432,7 @@ function Board({ project, go }) {
             </div>
             {filtered.length === 0 && <div style={{ textAlign:'center', padding:40, color:'#1E293B', fontSize:13 }}>Nenhum item</div>}
             {filtered.map((item,i) => (
-              <div key={item.id} onClick={() => go('detail', { item, project, setStatus, addComment })}
+              <div key={item.id} onClick={() => go('detail', { item, project, setStatus, addComment, updateItem })}
                 style={{ display:'grid', gridTemplateColumns:'1fr 130px 100px 140px 140px', padding:'11px 16px', cursor:'pointer', borderBottom:i < filtered.length-1 ? '1px solid #0F172A' : 'none', transition:'background .1s' }}
                 onMouseEnter={e => e.currentTarget.style.background='#0F172A'}
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}>
@@ -444,25 +453,33 @@ function Board({ project, go }) {
       {newItemOpen && (
         <NewItemModal tags={tags} onAddTag={addTag} onSave={addItem} color={project.color} onClose={() => setNIO(false)}/>
       )}
+      {editItem && (
+        <NewItemModal tags={tags} onAddTag={addTag} onSave={async (form) => { await updateItem(editItem.id, form); setEditItem(null) }} color={project.color} onClose={() => setEditItem(null)} initialData={editItem} isEdit/>
+      )}
     </div>
   )
 }
 
-function KCard({ item, onClick }) {
+function KCard({ item, onClick, onEdit }) {
   return (
-    <div onClick={onClick} style={{ background:'#080D18', border:'1px solid #0F172A', borderRadius:7, padding:11, cursor:'pointer', marginBottom:7, transition:'border-color .15s, transform .1s' }}
+    <div style={{ background:'#080D18', border:'1px solid #0F172A', borderRadius:7, padding:11, marginBottom:7, transition:'border-color .15s, transform .1s', position:'relative' }}
       onMouseEnter={e => { e.currentTarget.style.borderColor='#1E293B'; e.currentTarget.style.transform='translateY(-1px)' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor='#0F172A'; e.currentTarget.style.transform='none' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:6, marginBottom:6 }}>
-        <p style={{ color:'#E2E8F0', fontSize:12, fontWeight:600, margin:0, lineHeight:1.4 }}>{item.title}</p>
-        <PPill id={item.prio}/>
+      <div onClick={onClick} style={{ cursor:'pointer' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:6, marginBottom:6 }}>
+          <p style={{ color:'#E2E8F0', fontSize:12, fontWeight:600, margin:0, lineHeight:1.4 }}>{item.title}</p>
+          <PPill id={item.prio}/>
+        </div>
+        {item.tags?.length > 0 && <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:6 }}>{item.tags.map(t => <Chip key={t} t={t} sm/>)}</div>}
       </div>
-      {item.tags?.length > 0 && <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:6 }}>{item.tags.map(t => <Chip key={t} t={t} sm/>)}</div>}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <span style={{ color:'#334155', fontSize:10 }}>{item.dev||item.qa||''}</span>
-        <div style={{ display:'flex', gap:5 }}>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           {item.media?.length > 0 && <span style={{ color:'#334155', fontSize:10 }}>🖼{item.media.length}</span>}
           {item.comments?.length > 0 && <span style={{ color:'#334155', fontSize:10 }}>💬{item.comments.length}</span>}
+          <button onClick={e=>{e.stopPropagation();onEdit()}} style={{ background:'none',border:'none',color:'#334155',cursor:'pointer',fontSize:11,padding:'2px 4px',borderRadius:4,transition:'color .15s' }}
+            onMouseEnter={e=>e.currentTarget.style.color='#6366F1'}
+            onMouseLeave={e=>e.currentTarget.style.color='#334155'}>✏️</button>
         </div>
       </div>
     </div>
@@ -472,15 +489,41 @@ function KCard({ item, onClick }) {
 /* ═══════════════════════════════════════════════════════
    MODAL: NOVO ITEM
 ═══════════════════════════════════════════════════════ */
-function NewItemModal({ tags: initTags, onAddTag, onSave, color, onClose }) {
+function NewItemModal({ tags: initTags, onAddTag, onSave, color, onClose, initialData, isEdit }) {
   const [localTags, setLT] = useState([...initTags])
-  const [form, setForm]    = useState({ title:'', status:'backlog', prio:'medio', tags:[], description:'', qa:'', dev:'', media:[] })
+  const [form, setForm]    = useState(initialData ? {
+    title: initialData.title||'', status: initialData.status||'backlog',
+    prio: initialData.prio||'medio', tags: initialData.tags||[],
+    description: initialData.description||'', qa: initialData.qa||'',
+    dev: initialData.dev||'', media: initialData.media||[],
+  } : { title:'', status:'backlog', prio:'medio', tags:[], description:'', qa:'', dev:'', media:[] })
   const [newTag, setNT]    = useState('')
   const [tab, setTab]      = useState('info')
   const [vurl, setVurl]    = useState('')
   const [busy, setBusy]    = useState(false)
   const imgRef             = useRef()
   const vidRef             = useRef()
+
+  // Ctrl+V paste image anywhere in modal
+  useEffect(() => {
+    const handler = (e) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile()
+          const r = new FileReader()
+          r.onload = ev => {
+            setForm(p => ({ ...p, media: [...p.media, { type:'image', url:ev.target.result, name:'imagem colada' }] }))
+            setTab('media')
+          }
+          r.readAsDataURL(file)
+        }
+      }
+    }
+    window.addEventListener('paste', handler)
+    return () => window.removeEventListener('paste', handler)
+  }, [])
 
   const f = (k,v) => setForm(p => ({...p,[k]:v}))
   const tog = t => f('tags', form.tags.includes(t) ? form.tags.filter(x => x !== t) : [...form.tags, t])
@@ -512,7 +555,7 @@ function NewItemModal({ tags: initTags, onAddTag, onSave, color, onClose }) {
   return (
     <Overlay onClose={onClose} wide>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingBottom:14, borderBottom:'1px solid #0F172A', marginBottom:0 }}>
-        <h2 style={{ fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:15, color:'#F1F5F9', margin:0 }}>➕ Novo Ponto de QA</h2>
+        <h2 style={{ fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:15, color:'#F1F5F9', margin:0 }}>{isEdit ? '✏️ Editar Ponto de QA' : '➕ Novo Ponto de QA'}</h2>
         <button onClick={onClose} style={{ background:'none', border:'none', color:'#334155', cursor:'pointer', fontSize:22, lineHeight:1 }}>×</button>
       </div>
 
@@ -598,7 +641,7 @@ function NewItemModal({ tags: initTags, onAddTag, onSave, color, onClose }) {
       <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:20, paddingTop:16, borderTop:'1px solid #0F172A' }}>
         <button onClick={onClose} style={btnG}>Cancelar</button>
         <button onClick={submit} disabled={busy} style={{...btnP,opacity:busy?.6:1}}>
-          {busy ? '⟳ Salvando...' : '🔒 Criar Ponto'}
+          {busy ? '⟳ Salvando...' : isEdit ? '✏️ Salvar Alterações' : '🔒 Criar Ponto'}
         </button>
       </div>
     </Overlay>
@@ -609,13 +652,14 @@ function NewItemModal({ tags: initTags, onAddTag, onSave, color, onClose }) {
    SCREEN: DETAIL
 ═══════════════════════════════════════════════════════ */
 function Detail({ ctx, go }) {
-  const { item: init, project, setStatus, addComment } = ctx
-  const [item, setItem]   = useState(init)
-  const [devView, setDV]  = useState(false)
-  const [author, setAu]   = useState('')
-  const [text, setTx]     = useState('')
-  const [busy, setBusy]   = useState(false)
-  const [lb, setLb]       = useState(null)
+  const { item: init, project, setStatus, addComment, updateItem } = ctx
+  const [item, setItem]     = useState(init)
+  const [devView, setDV]    = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [author, setAu]     = useState('')
+  const [text, setTx]       = useState('')
+  const [busy, setBusy]     = useState(false)
+  const [lb, setLb]         = useState(null)
 
   const s    = STATUSES.find(x => x.id === item.status)
   const imgs = (item.media||[]).filter(m => m.type === 'image')
@@ -649,17 +693,15 @@ function Detail({ ctx, go }) {
           <span style={{ width:7,height:7,borderRadius:'50%',background:project.color,display:'inline-block' }}/>
           <span style={{ color:'#334155', fontSize:12 }}>{project.name}</span>
         </div>
-        <button onClick={() => setDV(v => !v)} style={{...btnG,color:devView?'#0EA5E9':'#94A3B8',borderColor:devView?'#0EA5E944':'#1E293B'}}>
-          {devView ? '📋 Visão QA' : '👨‍💻 Visão Dev'}
-        </button>
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={() => setEditing(true)} style={{...btnG,color:'#6366F1',borderColor:'#6366F133'}}>✏️ Editar</button>
+          <button onClick={() => setDV(v => !v)} style={{...btnG,color:devView?'#0EA5E9':'#94A3B8',borderColor:devView?'#0EA5E944':'#1E293B'}}>
+            {devView ? '📋 Visão QA' : '👨‍💻 Visão Dev'}
+          </button>
+        </div>
       </nav>
 
       <div style={{ maxWidth:900, margin:'0 auto', padding:'26px 22px' }}>
-        <div style={{ background:'#0A0F1A', border:'1px solid #1E293B', borderRadius:7, padding:'8px 14px', marginBottom:18, display:'flex', gap:8, alignItems:'center' }}>
-          <span>🔒</span>
-          <span style={{ color:'#334155', fontSize:11 }}>Registrado em {new Date(item.created_at).toLocaleDateString('pt-BR')} — conteúdo imutável. Apenas status e comentários podem ser atualizados.</span>
-        </div>
-
         <div style={{ marginBottom:18 }}>
           <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:10 }}>
             <SPill id={item.status}/><PPill id={item.prio}/>
@@ -763,6 +805,23 @@ function Detail({ ctx, go }) {
         <div onClick={() => setLb(null)} style={{ position:'fixed',inset:0,background:'#000000f0',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center',cursor:'zoom-out',padding:20 }}>
           <img src={lb} style={{ maxWidth:'100%',maxHeight:'100%',borderRadius:8,boxShadow:'0 0 80px #000' }}/>
         </div>
+      )}
+      {editing && (
+        <NewItemModal
+          tags={(item.tags||[])}
+          onAddTag={async()=>{}}
+          onSave={async (form) => {
+            setBusy(true)
+            await updateItem(item.id, form)
+            setItem(p => ({...p, ...form}))
+            setBusy(false)
+            setEditing(false)
+          }}
+          color={project.color}
+          onClose={() => setEditing(false)}
+          initialData={item}
+          isEdit
+        />
       )}
     </div>
   )
